@@ -99,6 +99,235 @@ Observacao: nunca coloque senhas reais na documentacao ou no repositorio.
 Notas:
 - `JWT_NEVER_EXPIRES=true` gera JWT sem o campo `exp` (nao expira). Se voce definir `JWT_NEVER_EXPIRES=false`, ai sim `JWT_ACCESS_TOKEN_MINUTES` passa a ser aplicado.
 
+## Testar scripts `.sh` sem `export` manual (dev)
+
+Objetivo: executar scripts em `scripts_ad/` definindo as variaveis **apenas para aquele comando**, sem persistir no ambiente do usuario.
+
+Regras:
+- Nao usar `shell=True` (inclusive em Python).
+- Nao colocar senhas reais em arquivos versionados/documentacao.
+
+### Opcao A (Bash): variaveis inline (nao persistem)
+
+Modelo (copie/cole e ajuste):
+
+```
+LDAP_URI="ldap://srv-admaster.nabarrete.local" \
+BIND_DN="CN=Suporte TI NEF,OU=ADM Users,OU=Nabarrete,DC=nabarrete,DC=local" \
+BIND_PW="senha_aqui" \
+BASE_DN="OU=Nabarrete,DC=nabarrete,DC=local" \
+USERS_OU="OU=Usuarios,OU=Nabarrete,DC=nabarrete,DC=local" \
+DOMAIN="nabarrete.local" \
+./scripts_ad/users/list_users.sh
+```
+
+Exemplos por script:
+
+Usuarios:
+
+```
+LDAP_URI="ldap://srv-admaster.nabarrete.local" \
+BIND_DN="CN=Suporte TI NEF,OU=ADM Users,OU=Nabarrete,DC=nabarrete,DC=local" \
+BIND_PW="senha_aqui" \
+BASE_DN="OU=Nabarrete,DC=nabarrete,DC=local" \
+USERS_OU="OU=Usuarios,OU=Nabarrete,DC=nabarrete,DC=local" \
+DOMAIN="nabarrete.local" \
+./scripts_ad/users/list_users.sh
+```
+
+```
+LDAP_URI="ldap://srv-admaster.nabarrete.local" \
+BIND_DN="CN=Suporte TI NEF,OU=ADM Users,OU=Nabarrete,DC=nabarrete,DC=local" \
+BIND_PW="senha_aqui" \
+BASE_DN="OU=Nabarrete,DC=nabarrete,DC=local" \
+USERS_OU="OU=Usuarios,OU=Nabarrete,DC=nabarrete,DC=local" \
+DOMAIN="nabarrete.local" \
+./scripts_ad/users/get_user.sh jose.silva
+```
+
+```
+LDAP_URI="ldap://srv-admaster.nabarrete.local" \
+BIND_DN="CN=Suporte TI NEF,OU=ADM Users,OU=Nabarrete,DC=nabarrete,DC=local" \
+BIND_PW="senha_aqui" \
+BASE_DN="OU=Nabarrete,DC=nabarrete,DC=local" \
+USERS_OU="OU=Usuarios,OU=Nabarrete,DC=nabarrete,DC=local" \
+DOMAIN="nabarrete.local" \
+./scripts_ad/users/create_user.sh jose.silva "SenhaForte#123" Jose Silva "Jose Silva" jose.silva@exemplo.com true
+```
+
+```
+LDAP_URI="ldap://srv-admaster.nabarrete.local" \
+BIND_DN="CN=Suporte TI NEF,OU=ADM Users,OU=Nabarrete,DC=nabarrete,DC=local" \
+BIND_PW="senha_aqui" \
+BASE_DN="OU=Nabarrete,DC=nabarrete,DC=local" \
+USERS_OU="OU=Usuarios,OU=Nabarrete,DC=nabarrete,DC=local" \
+DOMAIN="nabarrete.local" \
+./scripts_ad/users/update_user.sh jose.silva Jose Silva "Jose Silva" jose.silva@exemplo.com "jose.silva@nabarrete.local"
+```
+
+```
+LDAP_URI="ldap://srv-admaster.nabarrete.local" \
+BIND_DN="CN=Suporte TI NEF,OU=ADM Users,OU=Nabarrete,DC=nabarrete,DC=local" \
+BIND_PW="senha_aqui" \
+BASE_DN="OU=Nabarrete,DC=nabarrete,DC=local" \
+USERS_OU="OU=Usuarios,OU=Nabarrete,DC=nabarrete,DC=local" \
+DOMAIN="nabarrete.local" \
+./scripts_ad/users/disable_user.sh jose.silva
+```
+
+```
+LDAP_URI="ldap://srv-admaster.nabarrete.local" \
+BIND_DN="CN=Suporte TI NEF,OU=ADM Users,OU=Nabarrete,DC=nabarrete,DC=local" \
+BIND_PW="senha_aqui" \
+BASE_DN="OU=Nabarrete,DC=nabarrete,DC=local" \
+USERS_OU="OU=Usuarios,OU=Nabarrete,DC=nabarrete,DC=local" \
+DOMAIN="nabarrete.local" \
+./scripts_ad/users/enable_user.sh jose.silva
+```
+
+```
+LDAP_URI="ldap://srv-admaster.nabarrete.local" \
+BIND_DN="CN=Suporte TI NEF,OU=ADM Users,OU=Nabarrete,DC=nabarrete,DC=local" \
+BIND_PW="senha_aqui" \
+BASE_DN="OU=Nabarrete,DC=nabarrete,DC=local" \
+USERS_OU="OU=Usuarios,OU=Nabarrete,DC=nabarrete,DC=local" \
+DOMAIN="nabarrete.local" \
+./scripts_ad/users/reset_password.sh jose.silva "NovaSenha#123" true
+```
+
+```
+LDAP_URI="ldap://srv-admaster.nabarrete.local" \
+BIND_DN="CN=Suporte TI NEF,OU=ADM Users,OU=Nabarrete,DC=nabarrete,DC=local" \
+BIND_PW="senha_aqui" \
+BASE_DN="OU=Nabarrete,DC=nabarrete,DC=local" \
+USERS_OU="OU=Usuarios,OU=Nabarrete,DC=nabarrete,DC=local" \
+DOMAIN="nabarrete.local" \
+./scripts_ad/users/delete_user.sh jose.silva
+```
+
+```
+LDAP_URI="ldap://srv-admaster.nabarrete.local" \
+BIND_DN="CN=Suporte TI NEF,OU=ADM Users,OU=Nabarrete,DC=nabarrete,DC=local" \
+BIND_PW="senha_aqui" \
+BASE_DN="OU=Nabarrete,DC=nabarrete,DC=local" \
+USERS_OU="OU=Usuarios,OU=Nabarrete,DC=nabarrete,DC=local" \
+DOMAIN="nabarrete.local" \
+./scripts_ad/users/sync_users.sh
+```
+
+Grupos:
+
+```
+LDAP_URI="ldap://srv-admaster.nabarrete.local" \
+BIND_DN="CN=Suporte TI NEF,OU=ADM Users,OU=Nabarrete,DC=nabarrete,DC=local" \
+BIND_PW="senha_aqui" \
+BASE_DN="OU=Nabarrete,DC=nabarrete,DC=local" \
+USERS_OU="OU=Usuarios,OU=Nabarrete,DC=nabarrete,DC=local" \
+DOMAIN="nabarrete.local" \
+./scripts_ad/groups/list_groups.sh
+```
+
+```
+LDAP_URI="ldap://srv-admaster.nabarrete.local" \
+BIND_DN="CN=Suporte TI NEF,OU=ADM Users,OU=Nabarrete,DC=nabarrete,DC=local" \
+BIND_PW="senha_aqui" \
+BASE_DN="OU=Nabarrete,DC=nabarrete,DC=local" \
+USERS_OU="OU=Usuarios,OU=Nabarrete,DC=nabarrete,DC=local" \
+DOMAIN="nabarrete.local" \
+./scripts_ad/groups/get_group.sh TI-HELPDESK
+```
+
+```
+LDAP_URI="ldap://srv-admaster.nabarrete.local" \
+BIND_DN="CN=Suporte TI NEF,OU=ADM Users,OU=Nabarrete,DC=nabarrete,DC=local" \
+BIND_PW="senha_aqui" \
+BASE_DN="OU=Nabarrete,DC=nabarrete,DC=local" \
+USERS_OU="OU=Usuarios,OU=Nabarrete,DC=nabarrete,DC=local" \
+DOMAIN="nabarrete.local" \
+./scripts_ad/groups/create_group.sh TI-HELPDESK "Grupo do helpdesk"
+```
+
+```
+LDAP_URI="ldap://srv-admaster.nabarrete.local" \
+BIND_DN="CN=Suporte TI NEF,OU=ADM Users,OU=Nabarrete,DC=nabarrete,DC=local" \
+BIND_PW="senha_aqui" \
+BASE_DN="OU=Nabarrete,DC=nabarrete,DC=local" \
+USERS_OU="OU=Usuarios,OU=Nabarrete,DC=nabarrete,DC=local" \
+DOMAIN="nabarrete.local" \
+./scripts_ad/groups/update_group.sh TI-HELPDESK "Descricao atualizada"
+```
+
+```
+LDAP_URI="ldap://srv-admaster.nabarrete.local" \
+BIND_DN="CN=Suporte TI NEF,OU=ADM Users,OU=Nabarrete,DC=nabarrete,DC=local" \
+BIND_PW="senha_aqui" \
+BASE_DN="OU=Nabarrete,DC=nabarrete,DC=local" \
+USERS_OU="OU=Usuarios,OU=Nabarrete,DC=nabarrete,DC=local" \
+DOMAIN="nabarrete.local" \
+./scripts_ad/groups/add_user_to_group.sh jose.silva TI-HELPDESK
+```
+
+```
+LDAP_URI="ldap://srv-admaster.nabarrete.local" \
+BIND_DN="CN=Suporte TI NEF,OU=ADM Users,OU=Nabarrete,DC=nabarrete,DC=local" \
+BIND_PW="senha_aqui" \
+BASE_DN="OU=Nabarrete,DC=nabarrete,DC=local" \
+USERS_OU="OU=Usuarios,OU=Nabarrete,DC=nabarrete,DC=local" \
+DOMAIN="nabarrete.local" \
+./scripts_ad/groups/remove_user_from_group.sh jose.silva TI-HELPDESK
+```
+
+```
+LDAP_URI="ldap://srv-admaster.nabarrete.local" \
+BIND_DN="CN=Suporte TI NEF,OU=ADM Users,OU=Nabarrete,DC=nabarrete,DC=local" \
+BIND_PW="senha_aqui" \
+BASE_DN="OU=Nabarrete,DC=nabarrete,DC=local" \
+USERS_OU="OU=Usuarios,OU=Nabarrete,DC=nabarrete,DC=local" \
+DOMAIN="nabarrete.local" \
+./scripts_ad/groups/disable_group.sh TI-HELPDESK "OU=Grupos Desativados,OU=Nabarrete,DC=nabarrete,DC=local"
+```
+
+```
+LDAP_URI="ldap://srv-admaster.nabarrete.local" \
+BIND_DN="CN=Suporte TI NEF,OU=ADM Users,OU=Nabarrete,DC=nabarrete,DC=local" \
+BIND_PW="senha_aqui" \
+BASE_DN="OU=Nabarrete,DC=nabarrete,DC=local" \
+USERS_OU="OU=Usuarios,OU=Nabarrete,DC=nabarrete,DC=local" \
+DOMAIN="nabarrete.local" \
+./scripts_ad/groups/sync_groups.sh
+```
+
+### Opcao B (recomendado): wrapper `scripts_ad/test_env.sh`
+
+1) Crie seu arquivo local (nao versionado):
+
+```
+cp scripts_ad/test_env.local.example scripts_ad/test_env.local
+```
+
+2) Rode qualquer script passando o caminho relativo a `scripts_ad/`:
+
+```
+./scripts_ad/test_env.sh users/list_users.sh
+./scripts_ad/test_env.sh users/get_user.sh jose.silva
+./scripts_ad/test_env.sh groups/list_groups.sh
+./scripts_ad/test_env.sh groups/add_user_to_group.sh jose.silva TI-HELPDESK
+```
+
+Observacao: se `BIND_PW` nao estiver definido em `scripts_ad/test_env.local`, o wrapper pede no prompt (sem eco).
+
+### Opcao C (Python): `subprocess.run(..., env=...)` (sem depender do ambiente)
+
+Use o runner de desenvolvimento:
+
+```
+python scripts_ad/devtools/run_script.py users/list_users.sh
+python scripts_ad/devtools/run_script.py groups/list_groups.sh
+python scripts_ad/devtools/run_script.py users/get_user.sh jose.silva
+```
+
+Ele carrega `scripts_ad/test_env.local` e sempre executa o `.sh` com `env={...}` (sem `shell=True`).
+
 ## Como rodar
 
 1. Instale dependencias:

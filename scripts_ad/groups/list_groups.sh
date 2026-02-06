@@ -24,7 +24,7 @@ require_env() {
 }
 
 ldap_search() {
-  ldapsearch -LLL -o ldif-wrap=no -H "$LDAP_URI" -D "$BIND_DN" -w "$BIND_PW"
+  ldapsearch -x -LLL -o ldif-wrap=no -H "$LDAP_URI" -D "$BIND_DN" -w "$BIND_PW"
 }
 
 # PROCESSAMENTO
@@ -34,12 +34,21 @@ require_env "BIND_PW" "$BIND_PW"
 require_env "BASE_DN" "$BASE_DN"
 
 # ACAO PRINCIPAL
-if ! GROUPS="$(
-  ldap_search -b "$BASE_DN" "(&(objectClass=group)(groupType:1.2.840.113556.1.4.803:=2147483648))" sAMAccountName \
-    | awk -F': ' '/^sAMAccountName: / {print $2}'
-)"; then
+LDAP_ERR_FILE="$(mktemp)"
+if ! RESULT="$(ldap_search -b "$BASE_DN" "(&(objectClass=group)(groupType:1.2.840.113556.1.4.803:=2147483648))" sAMAccountName 2>"$LDAP_ERR_FILE")"; then
+  if [[ -s "$LDAP_ERR_FILE" ]]; then
+    cat "$LDAP_ERR_FILE" >&2
+  fi
+  rm -f "$LDAP_ERR_FILE"
   error_exit "Falha ao listar grupos"
 fi
+if [[ -s "$LDAP_ERR_FILE" ]]; then
+  cat "$LDAP_ERR_FILE" >&2
+  rm -f "$LDAP_ERR_FILE"
+  error_exit "Falha ao listar grupos"
+fi
+rm -f "$LDAP_ERR_FILE"
+GROUPS="$(printf '%s\n' "$RESULT" | awk -F': ' '/^sAMAccountName: / {print $2}')"
 
 # SAIDA PADRONIZADA
 echo "STATUS=OK"

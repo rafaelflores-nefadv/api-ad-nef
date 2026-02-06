@@ -24,7 +24,7 @@ require_env() {
 }
 
 ldap_search() {
-  ldapsearch -LLL -o ldif-wrap=no -H "$LDAP_URI" -D "$BIND_DN" -w "$BIND_PW"
+  ldapsearch -x -LLL -o ldif-wrap=no -H "$LDAP_URI" -D "$BIND_DN" -w "$BIND_PW"
 }
 
 # PROCESSAMENTO
@@ -34,12 +34,21 @@ require_env "BIND_PW" "$BIND_PW"
 require_env "USERS_OU" "$USERS_OU"
 
 # ACAO PRINCIPAL
-if ! USERS="$(
-  ldap_search -b "$USERS_OU" "(&(objectClass=user)(!(objectClass=computer))(!(userAccountControl:1.2.840.113556.1.4.803:=2)))" sAMAccountName \
-    | awk -F': ' '/^sAMAccountName: / {print $2}'
-)"; then
+LDAP_ERR_FILE="$(mktemp)"
+if ! RESULT="$(ldap_search -b "$USERS_OU" "(&(objectClass=user)(!(objectClass=computer))(!(userAccountControl:1.2.840.113556.1.4.803:=2)))" sAMAccountName 2>"$LDAP_ERR_FILE")"; then
+  if [[ -s "$LDAP_ERR_FILE" ]]; then
+    cat "$LDAP_ERR_FILE" >&2
+  fi
+  rm -f "$LDAP_ERR_FILE"
   error_exit "Falha ao listar usuarios"
 fi
+if [[ -s "$LDAP_ERR_FILE" ]]; then
+  cat "$LDAP_ERR_FILE" >&2
+  rm -f "$LDAP_ERR_FILE"
+  error_exit "Falha ao listar usuarios"
+fi
+rm -f "$LDAP_ERR_FILE"
+USERS="$(printf '%s\n' "$RESULT" | awk -F': ' '/^sAMAccountName: / {print $2}')"
 
 # SAIDA PADRONIZADA
 echo "STATUS=OK"
