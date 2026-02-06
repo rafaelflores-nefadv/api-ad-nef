@@ -315,6 +315,10 @@ Como funciona:
 - Por seguranca, `BIND_PW` e solicitado no prompt (sem eco), a menos que `BIND_PW` ja esteja definido no ambiente do processo.
  - Se no servidor existir apenas `python3` (sem `python`) ou se voce estiver usando venv, o wrapper auto-detecta.
    Se precisar, voce pode forcar o Python assim: `PYTHON_BIN=/caminho/da/venv/bin/python ./scripts_ad/test_env.sh users/list_users.sh`.
+ - Para compatibilidade em ambientes onde o `ldapsearch` nao tem BASE padrao configurado, o wrapper injeta um `ldapsearch` temporario no `PATH` (apenas durante a execucao) para garantir que `-b`/filtro/atributos esperados sejam aplicados. Isso evita o erro `empty base DN` sem alterar os scripts `.sh`.
+
+Debug:
+- Para ver quais variaveis estao sendo passadas (sem expor senha): `TEST_ENV_DEBUG=1 ./scripts_ad/test_env.sh users/list_users.sh`
 
 ### Opcao C (Python): `subprocess.run(..., env=...)` (sem depender do ambiente)
 

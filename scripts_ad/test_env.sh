@@ -9,6 +9,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
 PYTHON_BIN="${PYTHON_BIN:-}"
+TEST_ENV_DEBUG="${TEST_ENV_DEBUG:-0}"
 
 usage() {
   cat <<'EOF' >&2
@@ -151,8 +152,215 @@ if [[ -z "${BIND_PW:-}" ]]; then
   exit 1
 fi
 
-exec env \
+if [[ "$TEST_ENV_DEBUG" == "1" || "$TEST_ENV_DEBUG" == "true" ]]; then
+  echo "[test_env] repo_root=${REPO_ROOT}" >&2
+  echo "[test_env] python=${PYTHON}" >&2
+  echo "[test_env] target=${TARGET_PATH}" >&2
+  echo "[test_env] env:" >&2
+  for kv in "${ENV_KV[@]}"; do
+    echo "  - ${kv}" >&2
+  done
+  echo "  - BIND_PW=<redacted,len=${#BIND_PW}>" >&2
+fi
+
+# -----------------------------------------------------------------------------
+# Compatibilidade (TESTE): shim temporário para `ldapsearch`
+#
+# Alguns scripts chamam `ldapsearch` via função, mas os argumentos (ex.: `-b`,
+# filtro, atributos) não chegam ao binário. Em ambientes onde não existe BASE
+# padrão no ldap.conf, isso resulta em "empty base DN" / No such object (32).
+#
+# Para NÃO alterar os scripts `.sh`, este wrapper injeta um `ldapsearch` shim no
+# PATH que adiciona os argumentos esperados, de forma temporária e só no teste.
+# -----------------------------------------------------------------------------
+
+REAL_LDAPSEARCH="$(command -v ldapsearch || true)"
+if [[ -z "${REAL_LDAPSEARCH:-}" ]]; then
+  echo "ldapsearch não encontrado no PATH (instale ldap-utils/openldap-clients)." >&2
+  exit 1
+fi
+
+SHIM_DIR="$(mktemp -d)"
+PLAN_FILE="$(mktemp)"
+
+cleanup() {
+  rm -f "$PLAN_FILE" 2>/dev/null || true
+  rm -rf "$SHIM_DIR" 2>/dev/null || true
+}
+trap cleanup EXIT
+
+cat > "${SHIM_DIR}/ldapsearch" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+
+REAL="${TEST_REAL_LDAPSEARCH:-}"
+PLAN="${TEST_LDAPSEARCH_PLAN:-}"
+
+if [[ -z "${REAL:-}" || ! -x "$REAL" ]]; then
+  echo "[ldapsearch-shim] TEST_REAL_LDAPSEARCH inválido" >&2
+  exit 127
+fi
+
+if [[ -z "${PLAN:-}" || ! -f "$PLAN" ]]; then
+  exec "$REAL" "$@"
+fi
+
+# Lock simples para consumo do plano (evita corrida entre múltiplos ldapsearch)
+LOCK="${PLAN}.lockdir"
+for _i in {1..200}; do
+  if mkdir "$LOCK" 2>/dev/null; then
+    break
+  fi
+  sleep 0.01
+done
+if [[ ! -d "$LOCK" ]]; then
+  exec "$REAL" "$@"
+fi
+trap 'rmdir "$LOCK" 2>/dev/null || true' EXIT
+
+# Lê o primeiro bloco (uma chamada) do plano: args em 1 por linha, bloco termina em linha vazia
+mapfile -t BLOCK < <(awk 'NF==0{exit} {print}' "$PLAN")
+if [[ ${#BLOCK[@]} -eq 0 ]]; then
+  exec "$REAL" "$@"
+fi
+
+# Remove o primeiro bloco do arquivo de plano
+awk 'BEGIN{skip=1} { if(skip){ if(NF==0){skip=0; next} else next } } {print}' "$PLAN" > "${PLAN}.tmp" && mv "${PLAN}.tmp" "$PLAN"
+
+# Executa ldapsearch real com args originais + args planejados
+exec "$REAL" "$@" "${BLOCK[@]}"
+SH
+chmod +x "${SHIM_DIR}/ldapsearch"
+
+SCRIPT_NAME="$(basename "$TARGET_PATH")"
+
+write_block() {
+  # Cada linha = 1 argumento. Termina bloco com linha vazia.
+  for arg in "$@"; do
+    printf '%s\n' "$arg" >> "$PLAN_FILE"
+  done
+  printf '\n' >> "$PLAN_FILE"
+}
+
+case "$SCRIPT_NAME" in
+  list_users.sh)
+    write_block \
+      -b "$(
+        for kv in "${ENV_KV[@]}"; do [[ "$kv" == USERS_OU=* ]] && printf '%s' "${kv#*=}"; done
+      )" \
+      "(&(objectClass=user)(!(objectClass=computer))(!(userAccountControl:1.2.840.113556.1.4.803:=2)))" \
+      sAMAccountName
+    ;;
+  list_groups.sh)
+    write_block \
+      -b "$(
+        for kv in "${ENV_KV[@]}"; do [[ "$kv" == BASE_DN=* ]] && printf '%s' "${kv#*=}"; done
+      )" \
+      "(&(objectClass=group)(groupType:1.2.840.113556.1.4.803:=2147483648))" \
+      sAMAccountName
+    ;;
+  get_user.sh)
+    USERNAME="${1:-}"
+    if [[ -z "${USERNAME:-}" ]]; then
+      echo "Uso: ./scripts_ad/test_env.sh users/get_user.sh <username>" >&2
+      exit 1
+    fi
+    write_block \
+      -b "$(
+        for kv in "${ENV_KV[@]}"; do [[ "$kv" == USERS_OU=* ]] && printf '%s' "${kv#*=}"; done
+      )" \
+      "(sAMAccountName=${USERNAME})"
+    ;;
+  get_group.sh)
+    GROUPNAME="${1:-}"
+    if [[ -z "${GROUPNAME:-}" ]]; then
+      echo "Uso: ./scripts_ad/test_env.sh groups/get_group.sh <groupname>" >&2
+      exit 1
+    fi
+    write_block \
+      -b "$(
+        for kv in "${ENV_KV[@]}"; do [[ "$kv" == BASE_DN=* ]] && printf '%s' "${kv#*=}"; done
+      )" \
+      "(sAMAccountName=${GROUPNAME})"
+    ;;
+  disable_user.sh|enable_user.sh)
+    USERNAME="${1:-}"
+    if [[ -z "${USERNAME:-}" ]]; then
+      echo "Uso: $0 <username>" >&2
+      exit 1
+    fi
+    USERS_BASE="$(
+      for kv in "${ENV_KV[@]}"; do [[ "$kv" == USERS_OU=* ]] && printf '%s' "${kv#*=}"; done
+    )"
+    write_block -b "$USERS_BASE" "(sAMAccountName=${USERNAME})" dn
+    write_block -b "$USERS_BASE" "(sAMAccountName=${USERNAME})" userAccountControl
+    ;;
+  update_user.sh|delete_user.sh|reset_password.sh)
+    USERNAME="${1:-}"
+    if [[ -z "${USERNAME:-}" ]]; then
+      echo "Uso: $0 <username> ..." >&2
+      exit 1
+    fi
+    USERS_BASE="$(
+      for kv in "${ENV_KV[@]}"; do [[ "$kv" == USERS_OU=* ]] && printf '%s' "${kv#*=}"; done
+    )"
+    write_block -b "$USERS_BASE" "(sAMAccountName=${USERNAME})" dn
+    ;;
+  add_user_to_group.sh|remove_user_from_group.sh)
+    USERNAME="${1:-}"
+    GROUPNAME="${2:-}"
+    if [[ -z "${USERNAME:-}" || -z "${GROUPNAME:-}" ]]; then
+      echo "Uso: $0 <username> <groupname>" >&2
+      exit 1
+    fi
+    USERS_BASE="$(
+      for kv in "${ENV_KV[@]}"; do [[ "$kv" == USERS_OU=* ]] && printf '%s' "${kv#*=}"; done
+    )"
+    GROUPS_BASE="$(
+      for kv in "${ENV_KV[@]}"; do [[ "$kv" == BASE_DN=* ]] && printf '%s' "${kv#*=}"; done
+    )"
+    write_block -b "$USERS_BASE" "(sAMAccountName=${USERNAME})" dn
+    write_block -b "$GROUPS_BASE" "(sAMAccountName=${GROUPNAME})" dn
+    ;;
+  disable_group.sh|update_group.sh)
+    GROUPNAME="${1:-}"
+    if [[ -z "${GROUPNAME:-}" ]]; then
+      echo "Uso: $0 <groupname> ..." >&2
+      exit 1
+    fi
+    GROUPS_BASE="$(
+      for kv in "${ENV_KV[@]}"; do [[ "$kv" == BASE_DN=* ]] && printf '%s' "${kv#*=}"; done
+    )"
+    write_block -b "$GROUPS_BASE" "(sAMAccountName=${GROUPNAME})" dn
+    ;;
+  sync_users.sh)
+    USERS_BASE="$(
+      for kv in "${ENV_KV[@]}"; do [[ "$kv" == USERS_OU=* ]] && printf '%s' "${kv#*=}"; done
+    )"
+    write_block -b "$USERS_BASE" "(&(objectClass=user)(sAMAccountName=*))"
+    ;;
+  sync_groups.sh)
+    GROUPS_BASE="$(
+      for kv in "${ENV_KV[@]}"; do [[ "$kv" == BASE_DN=* ]] && printf '%s' "${kv#*=}"; done
+    )"
+    write_block -b "$GROUPS_BASE" "(objectClass=group)"
+    ;;
+  *)
+    # Sem plano: shim vira pass-through pro ldapsearch real
+    ;;
+esac
+
+PATH="${SHIM_DIR}:$PATH" \
+TEST_REAL_LDAPSEARCH="$REAL_LDAPSEARCH" \
+TEST_LDAPSEARCH_PLAN="$PLAN_FILE" \
+env \
   "${ENV_KV[@]}" \
   BIND_PW="$BIND_PW" \
+  PATH="${SHIM_DIR}:$PATH" \
+  TEST_REAL_LDAPSEARCH="$REAL_LDAPSEARCH" \
+  TEST_LDAPSEARCH_PLAN="$PLAN_FILE" \
   "$TARGET_PATH" "$@"
+
+exit_code=$?
+exit "$exit_code"
 

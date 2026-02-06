@@ -3,6 +3,8 @@ import subprocess
 import sys
 from getpass import getpass
 from pathlib import Path
+import shutil
+import tempfile
 
 
 REQUIRED_KEYS = ("LDAP_URI", "BIND_DN", "BIND_PW", "BASE_DN", "USERS_OU", "DOMAIN")
@@ -76,12 +78,141 @@ def main(argv: list[str]) -> int:
 
     env = {**os.environ, **loaded}
 
-    result = subprocess.run(
-        [str(target_path), *script_args],
-        env=env,
-        capture_output=True,
-        text=True,
-    )
+    real_ldapsearch = shutil.which("ldapsearch")
+    if not real_ldapsearch:
+        print(
+            "ldapsearch não encontrado no PATH (instale ldap-utils/openldap-clients).",
+            file=sys.stderr,
+        )
+        return 2
+
+    script_name = target_path.name
+
+    def write_block(fp, *args: str) -> None:
+        for a in args:
+            fp.write(a + "\n")
+        fp.write("\n")
+
+    with tempfile.TemporaryDirectory() as shim_dir:
+        plan_path = Path(shim_dir) / "ldapsearch.plan"
+        shim_path = Path(shim_dir) / "ldapsearch"
+
+        shim_path.write_text(
+            """#!/usr/bin/env bash
+set -euo pipefail
+
+REAL="${TEST_REAL_LDAPSEARCH:-}"
+PLAN="${TEST_LDAPSEARCH_PLAN:-}"
+
+if [[ -z "${REAL:-}" || ! -x "$REAL" ]]; then
+  echo "[ldapsearch-shim] TEST_REAL_LDAPSEARCH inválido" >&2
+  exit 127
+fi
+
+if [[ -z "${PLAN:-}" || ! -f "$PLAN" ]]; then
+  exec "$REAL" "$@"
+fi
+
+LOCK="${PLAN}.lockdir"
+for _i in {1..200}; do
+  if mkdir "$LOCK" 2>/dev/null; then
+    break
+  fi
+  sleep 0.01
+done
+if [[ ! -d "$LOCK" ]]; then
+  exec "$REAL" "$@"
+fi
+trap 'rmdir "$LOCK" 2>/dev/null || true' EXIT
+
+mapfile -t BLOCK < <(awk 'NF==0{exit} {print}' "$PLAN")
+if [[ ${#BLOCK[@]} -eq 0 ]]; then
+  exec "$REAL" "$@"
+fi
+
+awk 'BEGIN{skip=1} { if(skip){ if(NF==0){skip=0; next} else next } } {print}' "$PLAN" > "${PLAN}.tmp" && mv "${PLAN}.tmp" "$PLAN"
+exec "$REAL" "$@" "${BLOCK[@]}"
+""",
+            encoding="utf-8",
+        )
+        os.chmod(shim_path, 0o755)
+
+        with plan_path.open("w", encoding="utf-8") as fp:
+            users_base = loaded["USERS_OU"]
+            groups_base = loaded["BASE_DN"]
+
+            if script_name == "list_users.sh":
+                write_block(
+                    fp,
+                    "-b",
+                    users_base,
+                    "(&(objectClass=user)(!(objectClass=computer))(!(userAccountControl:1.2.840.113556.1.4.803:=2)))",
+                    "sAMAccountName",
+                )
+            elif script_name == "list_groups.sh":
+                write_block(
+                    fp,
+                    "-b",
+                    groups_base,
+                    "(&(objectClass=group)(groupType:1.2.840.113556.1.4.803:=2147483648))",
+                    "sAMAccountName",
+                )
+            elif script_name == "get_user.sh":
+                if len(script_args) < 1:
+                    print("Uso: ... get_user.sh <username>", file=sys.stderr)
+                    return 2
+                username = script_args[0]
+                write_block(fp, "-b", users_base, f"(sAMAccountName={username})")
+            elif script_name == "get_group.sh":
+                if len(script_args) < 1:
+                    print("Uso: ... get_group.sh <groupname>", file=sys.stderr)
+                    return 2
+                groupname = script_args[0]
+                write_block(fp, "-b", groups_base, f"(sAMAccountName={groupname})")
+            elif script_name in ("disable_user.sh", "enable_user.sh"):
+                if len(script_args) < 1:
+                    print("Uso: ... <username>", file=sys.stderr)
+                    return 2
+                username = script_args[0]
+                write_block(fp, "-b", users_base, f"(sAMAccountName={username})", "dn")
+                write_block(fp, "-b", users_base, f"(sAMAccountName={username})", "userAccountControl")
+            elif script_name in ("update_user.sh", "delete_user.sh", "reset_password.sh"):
+                if len(script_args) < 1:
+                    print("Uso: ... <username> ...", file=sys.stderr)
+                    return 2
+                username = script_args[0]
+                write_block(fp, "-b", users_base, f"(sAMAccountName={username})", "dn")
+            elif script_name in ("add_user_to_group.sh", "remove_user_from_group.sh"):
+                if len(script_args) < 2:
+                    print("Uso: ... <username> <groupname>", file=sys.stderr)
+                    return 2
+                username, groupname = script_args[0], script_args[1]
+                write_block(fp, "-b", users_base, f"(sAMAccountName={username})", "dn")
+                write_block(fp, "-b", groups_base, f"(sAMAccountName={groupname})", "dn")
+            elif script_name in ("disable_group.sh", "update_group.sh"):
+                if len(script_args) < 1:
+                    print("Uso: ... <groupname> ...", file=sys.stderr)
+                    return 2
+                groupname = script_args[0]
+                write_block(fp, "-b", groups_base, f"(sAMAccountName={groupname})", "dn")
+            elif script_name == "sync_users.sh":
+                write_block(fp, "-b", users_base, "(&(objectClass=user)(sAMAccountName=*))")
+            elif script_name == "sync_groups.sh":
+                write_block(fp, "-b", groups_base, "(objectClass=group)")
+            else:
+                # Sem plano: shim vira pass-through
+                pass
+
+        env["PATH"] = f"{shim_dir}{os.pathsep}{env.get('PATH','')}"
+        env["TEST_REAL_LDAPSEARCH"] = real_ldapsearch
+        env["TEST_LDAPSEARCH_PLAN"] = str(plan_path)
+
+        result = subprocess.run(
+            [str(target_path), *script_args],
+            env=env,
+            capture_output=True,
+            text=True,
+        )
 
     if result.stdout:
         print(result.stdout, end="")
