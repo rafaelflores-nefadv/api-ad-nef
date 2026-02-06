@@ -27,8 +27,10 @@ cache e informacoes de sincronizacao.
 ## Estrutura do projeto
 
 ```
-app/
-├── main.py
+.
+├── app/                       # shim para uvicorn app.main:app
+│   └── main.py
+├── main.py                    # entrypoint principal
 ├── core/
 │   ├── config.py
 │   ├── security.py
@@ -38,6 +40,7 @@ app/
 │   ├── samba_group_editor.py
 │   ├── users.py
 │   ├── groups.py
+│   ├── app_tokens.py
 ├── api/
 │   ├── v1/
 │   │   ├── auth.py
@@ -46,11 +49,18 @@ app/
 ├── models/
 │   ├── user.py
 │   ├── group.py
+│   ├── auth.py
 ├── db/
 │   ├── session.py
 │   ├── models.py
-└── audit/
-    └── logger.py
+├── audit/
+│   └── logger.py
+├── scripts/
+│   ├── get_token.sh
+│   ├── get_token.ps1
+│   ├── create_app_token.sh
+└── docs/
+    └── README.md
 ```
 
 ## Configuracao (variaveis de ambiente)
@@ -119,6 +129,10 @@ uvicorn app.main:app --reload
 
 ## Autenticacao (JWT)
 
+### Fluxo 1: usuario AD (legado)
+
+Usa credenciais reais do AD e valida via `samba-tool`.
+
 Endpoint de login:
 ```
 POST /api/v1/auth/token
@@ -128,7 +142,7 @@ Body (form-data):
 - `username`
 - `password`
 
-### Gerar token via terminal (sem expor senha na linha de comando)
+#### Gerar token via terminal (usuario AD)
 
 Linux/macOS (bash):
 
@@ -141,6 +155,36 @@ Windows (PowerShell):
 
 ```
 powershell -ExecutionPolicy Bypass -File .\scripts\get_token.ps1 -BaseUrl "http://localhost:8025" -Username "SEU_USUARIO"
+```
+
+### Fluxo 2: aplicacao (recomendado)
+
+Esse fluxo cria um `app_name`, gera um `app_secret` e retorna um JWT.
+Guarde o `app_secret` com seguranca.
+
+```
+POST /api/v1/auth/app-token
+```
+
+Linux/macOS (bash):
+
+```
+chmod +x scripts/create_app_token.sh
+./scripts/create_app_token.sh http://localhost:8025 NOME_DA_APLICACAO
+```
+
+Para renovar o JWT usando o `app_secret`:
+
+```
+POST /api/v1/auth/app-login
+```
+
+Exemplo curl:
+
+```
+curl -X POST http://localhost:8025/api/v1/auth/app-login \
+  -H "Content-Type: application/json" \
+  -d '{"app_name":"NOME_DA_APLICACAO","app_secret":"SEU_SECRET"}'
 ```
 
 Retorno:

@@ -37,3 +37,13 @@ class GroupMeta(Base):
     ad_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     extra_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     last_sync: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class AppClient(Base):
+    __tablename__ = "app_clients"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    app_name: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
+    secret_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    last_used: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
