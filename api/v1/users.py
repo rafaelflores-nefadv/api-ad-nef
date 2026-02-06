@@ -1,7 +1,7 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from core.rate_limit import RateLimit
+from core.rate_limit import rate_limit_dependency
 from core.security import Role, require_roles
 from db.session import get_db
 from models.user import (
@@ -28,7 +28,12 @@ def get_user(username: str, payload=Depends(require_roles(Role.admin, Role.helpd
     return UserOut(username=username, attributes=user_service.get_user(username))
 
 
-@router.post("/users", status_code=status.HTTP_201_CREATED, summary="Criar usuario", dependencies=[RateLimit()])
+@router.post(
+    "/users",
+    status_code=status.HTTP_201_CREATED,
+    summary="Criar usuario",
+    dependencies=[Depends(rate_limit_dependency)],
+)
 def create_user(
     body: UserCreate,
     dry_run: bool = Query(default=False, description="Executa em modo dry-run"),
@@ -42,7 +47,11 @@ def create_user(
     return {"status": "ok", "dry_run": dry_run}
 
 
-@router.patch("/users/{username}", summary="Atualizar usuario", dependencies=[Depends(RateLimit())])
+@router.patch(
+    "/users/{username}",
+    summary="Atualizar usuario",
+    dependencies=[Depends(rate_limit_dependency)],
+)
 def update_user(
     username: str,
     body: UserUpdate,
@@ -57,7 +66,11 @@ def update_user(
     return {"status": "ok", "dry_run": dry_run}
 
 
-@router.post("/users/{username}/reset-password", summary="Resetar senha", dependencies=[RateLimit()])
+@router.post(
+    "/users/{username}/reset-password",
+    summary="Resetar senha",
+    dependencies=[Depends(rate_limit_dependency)],
+)
 def reset_password(
     username: str,
     body: UserPasswordReset,
@@ -74,7 +87,11 @@ def reset_password(
     return {"status": "ok", "dry_run": dry_run}
 
 
-@router.post("/users/{username}/enable", summary="Habilitar usuario", dependencies=[RateLimit()])
+@router.post(
+    "/users/{username}/enable",
+    summary="Habilitar usuario",
+    dependencies=[Depends(rate_limit_dependency)],
+)
 def enable_user(
     username: str,
     dry_run: bool = Query(default=False, description="Executa em modo dry-run"),
@@ -88,7 +105,11 @@ def enable_user(
     return {"status": "ok", "dry_run": dry_run}
 
 
-@router.post("/users/{username}/disable", summary="Desabilitar usuario", dependencies=[RateLimit()])
+@router.post(
+    "/users/{username}/disable",
+    summary="Desabilitar usuario",
+    dependencies=[Depends(rate_limit_dependency)],
+)
 def disable_user(
     username: str,
     dry_run: bool = Query(default=False, description="Executa em modo dry-run"),
@@ -102,7 +123,11 @@ def disable_user(
     return {"status": "ok", "dry_run": dry_run}
 
 
-@router.post("/users/{username}/groups", summary="Adicionar usuario ao grupo", dependencies=[RateLimit()])
+@router.post(
+    "/users/{username}/groups",
+    summary="Adicionar usuario ao grupo",
+    dependencies=[Depends(rate_limit_dependency)],
+)
 def add_user_to_group(
     username: str,
     body: UserGroupChange,
@@ -117,7 +142,11 @@ def add_user_to_group(
     return {"status": "ok", "dry_run": dry_run}
 
 
-@router.delete("/users/{username}/groups", summary="Remover usuario do grupo", dependencies=[RateLimit()])
+@router.delete(
+    "/users/{username}/groups",
+    summary="Remover usuario do grupo",
+    dependencies=[Depends(rate_limit_dependency)],
+)
 def remove_user_from_group(
     username: str,
     body: UserGroupChange,
@@ -132,7 +161,11 @@ def remove_user_from_group(
     return {"status": "ok", "dry_run": dry_run}
 
 
-@router.post("/sync/users", summary="Sincronizar usuarios", dependencies=[RateLimit()])
+@router.post(
+    "/sync/users",
+    summary="Sincronizar usuarios",
+    dependencies=[Depends(rate_limit_dependency)],
+)
 def sync_users(
     background_tasks: BackgroundTasks,
     payload=Depends(require_roles(Role.admin, Role.auditor)),

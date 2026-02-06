@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from threading import Lock
 from typing import Dict
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import HTTPException, Request, status
 
 from core.config import settings
 
@@ -48,5 +48,3 @@ def rate_limit_dependency(request: Request) -> None:
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Rate limit excedido")
 
 
-def RateLimit() -> None:
-    return Depends(rate_limit_dependency)

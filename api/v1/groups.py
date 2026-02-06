@@ -1,7 +1,7 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from core.rate_limit import RateLimit
+from core.rate_limit import rate_limit_dependency
 from core.security import Role, require_roles
 from db.session import get_db
 from models.group import GroupCreate, GroupList, GroupMemberChange, GroupOut, GroupUpdate
@@ -21,7 +21,12 @@ def get_group(groupname: str, payload=Depends(require_roles(Role.admin, Role.hel
     return GroupOut(groupname=groupname, attributes=group_service.get_group(groupname))
 
 
-@router.post("/groups", status_code=status.HTTP_201_CREATED, summary="Criar grupo", dependencies=[RateLimit()])
+@router.post(
+    "/groups",
+    status_code=status.HTTP_201_CREATED,
+    summary="Criar grupo",
+    dependencies=[Depends(rate_limit_dependency)],
+)
 def create_group(
     body: GroupCreate,
     dry_run: bool = Query(default=False, description="Executa em modo dry-run"),
@@ -35,7 +40,11 @@ def create_group(
     return {"status": "ok", "dry_run": dry_run}
 
 
-@router.patch("/groups/{groupname}", summary="Editar descricao do grupo", dependencies=[RateLimit()])
+@router.patch(
+    "/groups/{groupname}",
+    summary="Editar descricao do grupo",
+    dependencies=[Depends(rate_limit_dependency)],
+)
 def update_group(
     groupname: str,
     body: GroupUpdate,
@@ -53,7 +62,7 @@ def update_group(
 @router.post(
     "/groups/{groupname}/members",
     summary="Adicionar membro ao grupo",
-    dependencies=[RateLimit()],
+    dependencies=[Depends(rate_limit_dependency)],
 )
 def add_member(
     groupname: str,
@@ -72,7 +81,7 @@ def add_member(
 @router.delete(
     "/groups/{groupname}/members",
     summary="Remover membro do grupo",
-    dependencies=[RateLimit()],
+    dependencies=[Depends(rate_limit_dependency)],
 )
 def remove_member(
     groupname: str,
@@ -88,7 +97,11 @@ def remove_member(
     return {"status": "ok", "dry_run": dry_run}
 
 
-@router.post("/groups/{groupname}/disable", summary="Desativar grupo", dependencies=[RateLimit()])
+@router.post(
+    "/groups/{groupname}/disable",
+    summary="Desativar grupo",
+    dependencies=[Depends(rate_limit_dependency)],
+)
 def disable_group(
     groupname: str,
     target_ou_dn: str = Query(..., description="DN da OU de destino"),
@@ -103,7 +116,11 @@ def disable_group(
     return {"status": "ok", "dry_run": dry_run}
 
 
-@router.post("/sync/groups", summary="Sincronizar grupos", dependencies=[RateLimit()])
+@router.post(
+    "/sync/groups",
+    summary="Sincronizar grupos",
+    dependencies=[Depends(rate_limit_dependency)],
+)
 def sync_groups(
     background_tasks: BackgroundTasks,
     payload=Depends(require_roles(Role.admin, Role.auditor)),
