@@ -21,8 +21,10 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
 
 def create_access_token(subject: str, role: Role, extra: Dict[str, Any] | None = None) -> str:
     now = datetime.now(timezone.utc)
-    expire = now + timedelta(minutes=settings.jwt_access_token_minutes)
-    payload = {"sub": subject, "role": role.value, "iat": int(now.timestamp()), "exp": int(expire.timestamp())}
+    payload = {"sub": subject, "role": role.value, "iat": int(now.timestamp())}
+    if not settings.jwt_never_expires:
+        expire = now + timedelta(minutes=settings.jwt_access_token_minutes)
+        payload["exp"] = int(expire.timestamp())
     if extra:
         payload.update(extra)
     return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)

@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     jwt_secret_key: str = Field(default="change-me", validation_alias="JWT_SECRET_KEY")
     jwt_algorithm: str = Field(default="HS256", validation_alias="JWT_ALGORITHM")
     jwt_access_token_minutes: int = Field(default=30, validation_alias="JWT_ACCESS_TOKEN_MINUTES")
+    jwt_never_expires: bool = Field(default=True, validation_alias="JWT_NEVER_EXPIRES")
 
     samba_tool_path: str = Field(default="samba-tool", validation_alias="SAMBA_TOOL_PATH")
     samba_realm: str | None = Field(default=None, validation_alias="SAMBA_REALM")
