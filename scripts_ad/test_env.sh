@@ -8,6 +8,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
+PYTHON_BIN="${PYTHON_BIN:-}"
 
 usage() {
   cat <<'EOF' >&2
@@ -53,15 +54,49 @@ if [[ -z "${BIND_PW:-}" ]]; then
   echo
 fi
 
-if ! command -v python >/dev/null 2>&1; then
-  echo "python não encontrado no PATH. Instale Python 3.11+ ou ajuste o PATH." >&2
+pick_python() {
+  # 1) override explícito
+  if [[ -n "${PYTHON_BIN:-}" && -x "${PYTHON_BIN:-}" ]]; then
+    echo "$PYTHON_BIN"
+    return 0
+  fi
+  # 2) venv ativo
+  if [[ -n "${VIRTUAL_ENV:-}" && -x "${VIRTUAL_ENV}/bin/python" ]]; then
+    echo "${VIRTUAL_ENV}/bin/python"
+    return 0
+  fi
+  # 3) venv no repo
+  if [[ -x "${REPO_ROOT}/.venv/bin/python" ]]; then
+    echo "${REPO_ROOT}/.venv/bin/python"
+    return 0
+  fi
+  if [[ -x "${REPO_ROOT}/venv/bin/python" ]]; then
+    echo "${REPO_ROOT}/venv/bin/python"
+    return 0
+  fi
+  # 4) python do sistema
+  if command -v python3 >/dev/null 2>&1; then
+    command -v python3
+    return 0
+  fi
+  if command -v python >/dev/null 2>&1; then
+    command -v python
+    return 0
+  fi
+  return 1
+}
+
+PYTHON="$(pick_python || true)"
+if [[ -z "${PYTHON:-}" ]]; then
+  echo "Python não encontrado. Instale Python 3.11+ ou ative a venv da API." >&2
+  echo "Dica: VIRTUAL_ENV=/caminho/venv ou PYTHON_BIN=/caminho/python" >&2
   exit 1
 fi
 
 # Coleta config do Settings (core/config.py) sem precisar de arquivos extras.
 # Usa separador NUL para preservar valores com espaços.
 mapfile -d '' -t ENV_KV < <(
-  REPO_ROOT="$REPO_ROOT" python - <<'PY'
+  REPO_ROOT="$REPO_ROOT" "$PYTHON" - <<'PY'
 import os
 import sys
 from pathlib import Path
@@ -89,6 +124,8 @@ for k in list(pairs.keys()):
 
 for k, v in pairs.items():
     v = "" if v is None else str(v)
+    # normaliza: remove espaços/CRLF que podem quebrar DN/base
+    v = v.strip()
     sys.stdout.write(f"{k}={v}\0")
 PY
 )

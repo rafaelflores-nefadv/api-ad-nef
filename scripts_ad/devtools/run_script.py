@@ -50,16 +50,16 @@ def main(argv: list[str]) -> int:
     # Usa a config existente (core/config.py). Para senha, preferimos prompt/env
     # para não depender de valores hardcoded.
     loaded: dict[str, str] = {
-        "LDAP_URI": str(settings.ldap_uri or ""),
-        "BIND_DN": str(settings.bind_dn or ""),
-        "BASE_DN": str(settings.base_dn or ""),
-        "USERS_OU": str(settings.users_ou or ""),
-        "DOMAIN": str(settings.domain or ""),
+        "LDAP_URI": str(settings.ldap_uri or "").strip(),
+        "BIND_DN": str(settings.bind_dn or "").strip(),
+        "BASE_DN": str(settings.base_dn or "").strip(),
+        "USERS_OU": str(settings.users_ou or "").strip(),
+        "DOMAIN": str(settings.domain or "").strip(),
     }
 
     for k in list(loaded.keys()):
         if os.environ.get(k):
-            loaded[k] = os.environ[k]
+            loaded[k] = os.environ[k].strip()
 
     bind_pw = os.environ.get("BIND_PW")
     if not bind_pw:

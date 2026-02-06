@@ -302,6 +302,7 @@ DOMAIN="nabarrete.local" \
 Rode qualquer script passando o caminho relativo a `scripts_ad/`:
 
 ```
+chmod +x ./scripts_ad/test_env.sh
 ./scripts_ad/test_env.sh users/list_users.sh
 ./scripts_ad/test_env.sh users/get_user.sh jose.silva
 ./scripts_ad/test_env.sh groups/list_groups.sh
@@ -312,6 +313,8 @@ Como funciona:
 - As variaveis LDAP (LDAP_URI, BIND_DN, BASE_DN, USERS_OU, DOMAIN) sao lidas do `core/config.py` (Settings).
 - Se voce ja usa `.env` na raiz para a API, o Settings tambem respeita esse arquivo.
 - Por seguranca, `BIND_PW` e solicitado no prompt (sem eco), a menos que `BIND_PW` ja esteja definido no ambiente do processo.
+ - Se no servidor existir apenas `python3` (sem `python`) ou se voce estiver usando venv, o wrapper auto-detecta.
+   Se precisar, voce pode forcar o Python assim: `PYTHON_BIN=/caminho/da/venv/bin/python ./scripts_ad/test_env.sh users/list_users.sh`.
 
 ### Opcao C (Python): `subprocess.run(..., env=...)` (sem depender do ambiente)
 
