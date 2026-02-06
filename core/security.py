@@ -3,12 +3,10 @@ from enum import Enum
 from typing import Any, Dict
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 
 from core.config import settings
-from services.samba import SambaToolError, samba_verify_user_password
-
 
 class Role(str, Enum):
     admin = "admin"
@@ -16,7 +14,7 @@ class Role(str, Enum):
     auditor = "auditor"
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/app-login")
 
 
 def create_access_token(subject: str, role: Role, extra: Dict[str, Any] | None = None) -> str:
@@ -53,15 +51,10 @@ def require_roles(*roles: Role):
     return _checker
 
 
-def authenticate_and_issue_token(form: OAuth2PasswordRequestForm) -> Dict[str, str]:
-    try:
-        samba_verify_user_password(form.username, form.password)
-    except SambaToolError as exc:
-        # Diferenciar falhas de autenticacao de falhas de infraestrutura
-        if exc.returncode in {124, 127}:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=exc.stderr or str(exc),
-            ) from exc
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=exc.stderr or str(exc)) from exc
-    return {"access_token": create_access_token(form.username, Role.admin), "token_type": "bearer"}
+def actor_from_payload(payload: Dict[str, Any]) -> str:
+    if payload.get("app"):
+        return str(payload["app"])
+    subject = str(payload.get("sub", ""))
+    if subject.startswith("app:"):
+        return subject.split("app:", 1)[1]
+    return subject or "unknown"

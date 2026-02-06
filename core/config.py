@@ -15,13 +15,8 @@ class Settings(BaseSettings):
     jwt_access_token_minutes: int = Field(default=30, validation_alias="JWT_ACCESS_TOKEN_MINUTES")
     jwt_never_expires: bool = Field(default=True, validation_alias="JWT_NEVER_EXPIRES")
 
-    samba_tool_path: str = Field(default="samba-tool", validation_alias="SAMBA_TOOL_PATH")
-    samba_realm: str | None = Field(default=None, validation_alias="SAMBA_REALM")
-    samba_workgroup: str | None = Field(default=None, validation_alias="SAMBA_WORKGROUP")
-    samba_auth_user: str | None = Field(default=None, validation_alias="SAMBA_AUTH_USER")
-    samba_auth_domain: str | None = Field(default=None, validation_alias="SAMBA_AUTH_DOMAIN")
-    samba_timeout_seconds: int = Field(default=20, validation_alias="SAMBA_TIMEOUT_SECONDS")
-    samba_dry_run: bool = Field(default=False, validation_alias="SAMBA_DRY_RUN")
+    ad_scripts_dir: str = Field(default="scripts_ad", validation_alias="AD_SCRIPTS_DIR")
+    ad_script_timeout_seconds: int = Field(default=20, validation_alias="AD_SCRIPT_TIMEOUT_SECONDS")
 
     db_url: str = Field(default="sqlite:///./app.db", validation_alias="DATABASE_URL")
 

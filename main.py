@@ -10,7 +10,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="API Samba AD",
         version="1.0.0",
-        description="API REST para gerenciamento de Samba Active Directory via samba-tool.",
+        description="API REST para gerenciamento de Samba Active Directory via scripts LDAP.",
         openapi_url="/openapi.json",
         docs_url="/docs",
         redoc_url="/redoc",

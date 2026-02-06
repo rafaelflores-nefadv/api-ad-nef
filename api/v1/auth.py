@@ -1,17 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
-
-from core.security import authenticate_and_issue_token
 from db.session import get_db
 from models.auth import AppLoginRequest, AppTokenRequest, AppTokenResponse
 from services import app_tokens
 
 router = APIRouter()
-
-
-@router.post("/auth/token", summary="Obter token JWT")
-def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    return authenticate_and_issue_token(form_data)
 
 
 @router.post("/auth/app-token", response_model=AppTokenResponse, summary="Gerar token por aplicacao")

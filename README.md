@@ -1,6 +1,6 @@
 # api-ad-nef
 
-API REST para gerenciamento de Samba Active Directory (Samba 4.x) usando **exclusivamente** `samba-tool` via `subprocess`.
+API REST para gerenciamento de Samba Active Directory (Samba 4.x) usando **exclusivamente** scripts Bash com `ldapadd`, `ldapmodify` e `ldapsearch` via `subprocess`.
 
 ## Documentacao
 
