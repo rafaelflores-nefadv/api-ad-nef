@@ -299,13 +299,7 @@ DOMAIN="nabarrete.local" \
 
 ### Opcao B (recomendado): wrapper `scripts_ad/test_env.sh`
 
-1) Crie seu arquivo local (nao versionado):
-
-```
-cp scripts_ad/test_env.local.example scripts_ad/test_env.local
-```
-
-2) Rode qualquer script passando o caminho relativo a `scripts_ad/`:
+Rode qualquer script passando o caminho relativo a `scripts_ad/`:
 
 ```
 ./scripts_ad/test_env.sh users/list_users.sh
@@ -314,7 +308,10 @@ cp scripts_ad/test_env.local.example scripts_ad/test_env.local
 ./scripts_ad/test_env.sh groups/add_user_to_group.sh jose.silva TI-HELPDESK
 ```
 
-Observacao: se `BIND_PW` nao estiver definido em `scripts_ad/test_env.local`, o wrapper pede no prompt (sem eco).
+Como funciona:
+- As variaveis LDAP (LDAP_URI, BIND_DN, BASE_DN, USERS_OU, DOMAIN) sao lidas do `core/config.py` (Settings).
+- Se voce ja usa `.env` na raiz para a API, o Settings tambem respeita esse arquivo.
+- Por seguranca, `BIND_PW` e solicitado no prompt (sem eco), a menos que `BIND_PW` ja esteja definido no ambiente do processo.
 
 ### Opcao C (Python): `subprocess.run(..., env=...)` (sem depender do ambiente)
 
@@ -326,7 +323,7 @@ python scripts_ad/devtools/run_script.py groups/list_groups.sh
 python scripts_ad/devtools/run_script.py users/get_user.sh jose.silva
 ```
 
-Ele carrega `scripts_ad/test_env.local` e sempre executa o `.sh` com `env={...}` (sem `shell=True`).
+Ele usa `core/config.py` (Settings) para montar `env={...}` e executa o `.sh` via `subprocess.run` (sem `shell=True`). Para senha, pede no prompt (ou usa `BIND_PW` do ambiente).
 
 ## Como rodar
 
