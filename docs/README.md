@@ -36,8 +36,7 @@ cache e informacoes de sincronizacao.
 │   ├── security.py
 │   ├── rate_limit.py
 ├── services/
-│   ├── samba.py
-│   ├── samba_group_editor.py
+│   ├── script_runner.py
 │   ├── users.py
 │   ├── groups.py
 │   ├── app_tokens.py
@@ -86,6 +85,7 @@ AD_SCRIPTS_DIR=scripts_ad
 AD_SCRIPT_TIMEOUT_SECONDS=20
 ```
 
+```
 LDAP_URI="ldap://SRV-ADMASTER.nabarrete.local"
 BIND_DN="CN=Suporte TI NEF,OU=ADM Users,OU=Nabarrete,DC=nabarrete,DC=local"
 BIND_PW="<nao registrar aqui>"
@@ -217,6 +217,18 @@ Regras:
 - Timeout configuravel
 - Injeta variaveis LDAP via ambiente
 
+## Saida padronizada dos scripts
+
+Todos os scripts retornam via stdout:
+- `STATUS=OK`
+- `ACTION=<acao>`
+- `IDENTIFIER=<username ou group>`
+
+Quando houver dados:
+- `DATA_BEGIN`
+- `<dados>`
+- `DATA_END`
+
 ## Endpoints v1
 
 ### Usuarios
@@ -257,6 +269,17 @@ Listar usuarios (com token):
 ```
 curl http://localhost:8025/api/v1/users \
   -H "Authorization: Bearer <token>"
+```
+
+Resposta (texto):
+```
+STATUS=OK
+ACTION=list_users
+IDENTIFIER=list
+DATA_BEGIN
+usuario1
+usuario2
+DATA_END
 ```
 
 Criar usuario:
