@@ -20,12 +20,18 @@ router = APIRouter()
 
 @router.get("/users", response_model=UserList, summary="Listar usuarios")
 def list_users(payload=Depends(require_roles(Role.admin, Role.helpdesk, Role.auditor))):
-    return UserList(users=user_service.list_users())
+    try:
+        return UserList(users=user_service.list_users())
+    except SambaToolError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=exc.stderr or str(exc)) from exc
 
 
 @router.get("/users/{username}", response_model=UserOut, summary="Detalhar usuario")
 def get_user(username: str, payload=Depends(require_roles(Role.admin, Role.helpdesk, Role.auditor))):
-    return UserOut(username=username, attributes=user_service.get_user(username))
+    try:
+        return UserOut(username=username, attributes=user_service.get_user(username))
+    except SambaToolError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=exc.stderr or str(exc)) from exc
 
 
 @router.post(

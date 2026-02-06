@@ -19,7 +19,7 @@ cache e informacoes de sincronizacao.
 - Nunca usar LDAP direto
 - Nunca usar `shell=True`
 - Nunca executar comandos arbitrarios
-- Toda chamada ao AD passa por `app/services/samba.py`
+- Toda chamada ao AD passa por `services/samba.py`
 - API stateless
 - AD e a fonte da verdade
 - Banco local apenas para auditoria, cache, metadados e sincronizacao
@@ -108,6 +108,7 @@ Observacao: nunca coloque senhas reais na documentacao ou no repositorio.
 Notas:
 - `SAMBA_AUTH_*` sao opcionais e nao sao usados no comando por padrao.
 - `SAMBA_DRY_RUN=true` evita executar o `samba-tool` e retorna o comando.
+- `JWT_NEVER_EXPIRES=true` gera JWT sem o campo `exp` (nao expira). Se voce definir `JWT_NEVER_EXPIRES=false`, ai sim `JWT_ACCESS_TOKEN_MINUTES` passa a ser aplicado.
 
 ## Como rodar
 
@@ -125,8 +126,8 @@ uvicorn app.main:app --reload
 ```
 
 3. Acesse a documentacao:
-- Swagger: `http://localhost:8000/docs`
-- OpenAPI: `http://localhost:8000/openapi.json`
+- Swagger: `http://localhost:8025/docs`
+- OpenAPI: `http://localhost:8025/openapi.json`
 
 ## Autenticacao (JWT)
 
@@ -191,6 +192,8 @@ curl -X POST http://localhost:8025/api/v1/auth/app-login \
 Retorno:
 ```
 {
+  "app_name": "NOME_DA_APLICACAO",
+  "app_secret": "<secret-apenas-na-criacao>",
   "access_token": "<token>",
   "token_type": "bearer"
 }
@@ -200,6 +203,13 @@ Use o token no header:
 ```
 Authorization: Bearer <token>
 ```
+
+### Testar no navegador (Swagger)
+
+1. Abra `http://localhost:8025/docs`
+2. Clique em **Authorize**
+3. Cole `Bearer <token>`
+4. Execute as rotas (ex.: `GET /api/v1/users`)
 
 ## RBAC
 
@@ -230,7 +240,7 @@ Campos principais:
 
 ## Wrapper samba-tool
 
-Arquivo: `app/services/samba.py`
+Arquivo: `services/samba.py`
 
 Regras:
 - Usa `subprocess.run`
@@ -269,22 +279,29 @@ Regras:
 
 ## Exemplos rapidos (curl)
 
-Login:
+Login (usuario AD):
 ```
-curl -X POST http://localhost:8000/api/v1/auth/token \
+curl -X POST http://localhost:8025/api/v1/auth/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "username=administrator&password=senha"
 ```
 
-Listar usuarios:
+Gerar token por aplicacao (recomendado):
 ```
-curl http://localhost:8000/api/v1/users \
+curl -X POST http://localhost:8025/api/v1/auth/app-token \
+  -H "Content-Type: application/json" \
+  -d '{"app_name":"gestao-nef"}'
+```
+
+Listar usuarios (com token):
+```
+curl http://localhost:8025/api/v1/users \
   -H "Authorization: Bearer <token>"
 ```
 
 Criar usuario (dry-run):
 ```
-curl -X POST "http://localhost:8000/api/v1/users?dry_run=true" \
+curl -X POST "http://localhost:8025/api/v1/users?dry_run=true" \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
