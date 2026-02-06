@@ -128,6 +128,21 @@ Body (form-data):
 - `username`
 - `password`
 
+### Gerar token via terminal (sem expor senha na linha de comando)
+
+Linux/macOS (bash):
+
+```
+chmod +x scripts/get_token.sh
+./scripts/get_token.sh http://localhost:8025 SEU_USUARIO
+```
+
+Windows (PowerShell):
+
+```
+powershell -ExecutionPolicy Bypass -File .\scripts\get_token.ps1 -BaseUrl "http://localhost:8025" -Username "SEU_USUARIO"
+```
+
 Retorno:
 ```
 {
@@ -152,7 +167,7 @@ Controle aplicado via dependencias em cada endpoint.
 
 ## Rate limit
 
-Aplicado nos endpoints sensiveis via `RateLimit`.
+Aplicado nos endpoints sensiveis via dependencia `rate_limit_dependency`.
 O limitador e em memoria (por processo).
 
 ## Auditoria
