@@ -4,10 +4,10 @@ from typing import Any, Dict, List
 
 from sqlalchemy.orm import Session
 
-from app.audit.logger import log_audit
-from app.db.models import GroupMeta
-from app.db.session import SessionLocal
-from app.services import samba
+from audit.logger import log_audit
+from db.models import GroupMeta
+from db.session import SessionLocal
+from services import samba
 
 
 def list_groups() -> List[str]:

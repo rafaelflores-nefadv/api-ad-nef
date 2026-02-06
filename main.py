@@ -1,9 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1 import auth, groups, users
-from app.core.config import settings
-from app.db.session import Base, engine
+from api.v1 import auth, groups, users
+from core.config import settings
+from db.session import Base, engine
 
 
 def create_app() -> FastAPI:

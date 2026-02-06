@@ -6,8 +6,8 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 
-from app.core.config import settings
-from app.services.samba import SambaToolError, samba_verify_user_password
+from core.config import settings
+from services.samba import SambaToolError, samba_verify_user_password
 
 
 class Role(str, Enum):

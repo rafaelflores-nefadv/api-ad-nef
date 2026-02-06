@@ -1,12 +1,12 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.rate_limit import RateLimit
-from app.core.security import Role, require_roles
-from app.db.session import get_db
-from app.models.group import GroupCreate, GroupList, GroupMemberChange, GroupOut, GroupUpdate
-from app.services import groups as group_service
-from app.services.samba import SambaToolError
+from core.rate_limit import RateLimit
+from core.security import Role, require_roles
+from db.session import get_db
+from models.group import GroupCreate, GroupList, GroupMemberChange, GroupOut, GroupUpdate
+from services import groups as group_service
+from services.samba import SambaToolError
 
 router = APIRouter()
 

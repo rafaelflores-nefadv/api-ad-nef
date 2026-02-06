@@ -1,10 +1,10 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.rate_limit import RateLimit
-from app.core.security import Role, get_current_payload, require_roles
-from app.db.session import get_db
-from app.models.user import (
+from core.rate_limit import RateLimit
+from core.security import Role, require_roles
+from db.session import get_db
+from models.user import (
     UserCreate,
     UserGroupChange,
     UserList,
@@ -12,8 +12,8 @@ from app.models.user import (
     UserPasswordReset,
     UserUpdate,
 )
-from app.services import users as user_service
-from app.services.samba import SambaToolError
+from services import users as user_service
+from services.samba import SambaToolError
 
 router = APIRouter()
 

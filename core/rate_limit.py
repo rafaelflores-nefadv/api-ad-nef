@@ -5,7 +5,7 @@ from typing import Dict
 
 from fastapi import Depends, HTTPException, Request, status
 
-from app.core.config import settings
+from core.config import settings
 
 
 @dataclass
