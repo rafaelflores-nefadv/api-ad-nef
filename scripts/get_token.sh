@@ -18,8 +18,21 @@ fi
 read -r -s -p "Senha para ${USERNAME}: " PASSWORD
 echo
 
-curl -fsS -X POST "${BASE_URL}/api/v1/auth/token" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  --data-urlencode "username=${USERNAME}" \
-  --data-urlencode "password=${PASSWORD}" \
-  | python3 -c 'import sys, json; print(json.load(sys.stdin)["access_token"])'
+RESP_AND_CODE="$(
+  curl -sS -X POST "${BASE_URL}/api/v1/auth/token" \
+    -H "Content-Type: application/x-www-form-urlencoded" \
+    --data-urlencode "username=${USERNAME}" \
+    --data-urlencode "password=${PASSWORD}" \
+    -w $'\n%{http_code}'
+)"
+
+BODY="$(printf '%s' "$RESP_AND_CODE" | head -n -1)"
+CODE="$(printf '%s' "$RESP_AND_CODE" | tail -n 1)"
+
+if [[ "$CODE" != "200" ]]; then
+  echo "Erro HTTP ${CODE} ao solicitar token." >&2
+  echo "$BODY" >&2
+  exit 1
+fi
+
+printf '%s' "$BODY" | python3 -c 'import sys, json; print(json.load(sys.stdin)["access_token"])'

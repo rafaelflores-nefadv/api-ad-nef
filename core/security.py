@@ -55,5 +55,11 @@ def authenticate_and_issue_token(form: OAuth2PasswordRequestForm) -> Dict[str, s
     try:
         samba_verify_user_password(form.username, form.password)
     except SambaToolError as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+        # Diferenciar falhas de autenticacao de falhas de infraestrutura
+        if exc.returncode in {124, 127}:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=exc.stderr or str(exc),
+            ) from exc
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=exc.stderr or str(exc)) from exc
     return {"access_token": create_access_token(form.username, Role.admin), "token_type": "bearer"}

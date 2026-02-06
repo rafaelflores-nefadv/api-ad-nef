@@ -55,14 +55,29 @@ def run_samba_tool(
     if env_extra:
         env.update(env_extra)
 
-    result = subprocess.run(
-        full_args,
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-        env=env,
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            full_args,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            env=env,
+            check=False,
+        )
+    except FileNotFoundError as exc:
+        raise SambaToolError(
+            f"Executavel nao encontrado: {settings.samba_tool_path}",
+            stdout="",
+            stderr=str(exc),
+            returncode=127,
+        ) from exc
+    except subprocess.TimeoutExpired as exc:
+        raise SambaToolError(
+            "Timeout ao executar samba-tool",
+            stdout=(exc.stdout or "").strip() if isinstance(exc.stdout, str) else "",
+            stderr=(exc.stderr or "").strip() if isinstance(exc.stderr, str) else "",
+            returncode=124,
+        ) from exc
     stdout = (result.stdout or "").strip()
     stderr = (result.stderr or "").strip()
     if result.returncode != 0:
